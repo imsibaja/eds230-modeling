@@ -6,7 +6,7 @@
 # * PR is performance ratio (0-1) (accounting for site factors that impact efficiency usually around 0.75) 
 # * H is annual average solar radiation (kWh)
 
-photovoltaic_energy <- function(A, r=.2, PR=.75, H){
+photovoltaic_energy <- function(A, r=.2, H, PR=.75){
   if(r > 1 | r < 0){
     stop("Panel Yield (r) must be between 0 and 1 (Default = 0.2)")   
   }
