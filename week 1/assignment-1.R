@@ -7,11 +7,14 @@
 # * H is annual average solar radiation (kWh)
 
 photovoltaic_energy <- function(A, r=.2, H, PR=.75){
+  # check if Panel Yield is between 0 and 1
   if(r > 1 | r < 0){
     stop("Panel Yield (r) must be between 0 and 1 (Default = 0.2)")   
+  # check if Performance Ratio is between 0 and 1
   }
   if(PR > 1 | PR < 0){
     stop("Performance Ratio (r) must be between 0 and 1 (Default = 0.75)")   
   }
+  # return energy equation
   return (A * r * H * PR)
 }
