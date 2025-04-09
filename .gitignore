@@ -2,6 +2,10 @@
 .Rhistory
 .Rapp.history
 
+# Lectures
+lectures/
+/*.DS_Store
+
 # Session Data files
 .RData
 .RDataTmp
