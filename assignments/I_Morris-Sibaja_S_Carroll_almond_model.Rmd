@@ -1,0 +1,44 @@
+---
+title: "Almond Yield Model - EDS 230 Assignment-2"
+author: Carrol and Morris
+format: html-document
+---
+
+# Almond Yield Model
+
+## Conceptual Almond Model
+
+![Almond Yield Model](images/conceptual_model.jpeg)
+
+## Load Packages and Functions
+
+```{r, warning = FALSE, message = FALSE}
+# Load libraries
+library(here)
+library(tidyverse)
+```
+
+```{r}
+# Call almond function
+source(here('assignments/I_Morris-Sibaja_S_Carroll_almond_model.R'))
+```
+
+## Apply the Function
+
+```{r}
+# Read in climate data
+clim_data <- read.table(here::here("data/clim.txt"), header = TRUE)
+
+# Assign almond parameters to variables
+almond_params <- list(
+  c_T = -0.015,
+  c_T2 = -0.0046,
+  c_P = -0.07,
+  c_P2 = 0.0043,
+  intercept = 0.28
+)
+
+# Run function
+almond_model(clim_data, almond_params)
+```
+
