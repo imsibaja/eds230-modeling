@@ -182,7 +182,7 @@ almond_profit_analysis <- function(clim_data, almond_params, n_samples = 100) {
   
   # Return results as a list
   return(list(
-    data = sample_series,
+    data = head(sample_series),
     plots = list(sample_series_plot = plot1, water_cost_plot = plot2)
   ))
 }
