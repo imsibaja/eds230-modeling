@@ -1,0 +1,51 @@
+---
+title: "Assignment 3: Profit with Almond Yield"
+author: "Carroll and Morris"
+date: "2025-04-21"
+format: html
+---
+## Load Packages and Functions
+```{r, warning = FALSE, message = FALSE}
+# load libraries
+library(here)
+library(tidyverse)
+```
+
+```{r}
+# call almond yield function
+source(here('assignments/assignment3/R/I_Morris-Sibaja_S_Carroll_almond_profit_model.R'))
+source(here('assignments/assignment3/R/I_Morris-Sibaja_S_Carroll_almond_profit_analysis.R'))
+```
+## Apply the Function
+```{r}
+# read in climate data
+clim_data <- read.table(here::here("assignments/assignment3/data/clim.txt"), header = TRUE)
+# assign almond parameters to variables
+almond_params <- list(
+  c_T = -0.015,
+  c_T2 = -0.0046,
+  c_P = -0.07,
+  c_P2 = 0.0043,
+  intercept = 0.28
+)
+```
+
+## Profit Model
+
+```{r}
+almond_profit_analysis(clim_data, almond_params)
+```
+
+Our first plot indicates that the uncertainty in profit is highest in the years 1995, 2005, and 2008. We expect this is due to the high positive yield anomalies resulting from above average January precipitation and February temperature during these years. As expected, years with a higher yield anomaly return a larger uncertainty. Overall, variation in uncertainty is relatively low, which may suggest that profit is sensitive to the aforementioned factors, and that these three abnormal years are statistical outliers.
+
+Our profit model results indicate that a slight increase in almond profit is observed annually. We made the assumption that the profit of almonds is dependent on the cost of water needed in low-rainfall years. When we ran a sensitivity analysis test by adjusting our parameters 'price_per_ton' and 'labor_costs', and 'base_year' we found that the uncertainty was consistent annually, with the exception of a few years with high variance. We made a data frame and populated it with 100 samples generated for each parameter as well as the sample values calculated for adjusted profits. Our function was then applied to each row of our df with `pmap()`, calculating the estimated profit given specific parameter values.
+It's pertinent to note the assumptions we made to complete this assignment. Values were assigned arbitrarily for the following baseline constants used in this analysis:
+
+- Set a +2% change per year inflation
+- Set the almond price at $5000/ton
+- Assumed the baseline almond yield was 1000 tons/acre
+- Set the water rate at $2  per inverse mm precipitation
+- Set the formula for water_costs = water_rate / (precipitation_sum_jan + 1)
+- Set the labor cost at $3000/acre
+- Set the base year at 2000
+- Excluded other contributing factor

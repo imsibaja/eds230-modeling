@@ -51,8 +51,8 @@ almond_model <- function(clim, parameters) {
     summarise(minTemp_mean_feb = mean(tmin_c, na.rm = TRUE))
 
   # Merge precipitation and temperature
-  almond_variables <- merge(almond_precipitation_jan, almond_minTemp_feb, by =
-                              "year")
+  almond_variables <- merge(almond_precipitation_jan, almond_minTemp_feb, 
+                            by = "year")
 
   # Apply the yield anomaly equation using the parameters
   almond_variables <- almond_variables %>%
@@ -74,5 +74,5 @@ almond_model <- function(clim, parameters) {
       mean_yield = mean(yield_anomaly, na.rm = TRUE)
     )
 
-  return(almond_variables_summary)
+  return(almond_variables)
 }

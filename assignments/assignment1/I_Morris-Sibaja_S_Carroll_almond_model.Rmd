@@ -20,7 +20,7 @@ library(tidyverse)
 
 ```{r}
 # Call almond function
-source(here('assignments/I_Morris-Sibaja_S_Carroll_almond_model.R'))
+source(here('assignments/assignment1/I_Morris-Sibaja_S_Carroll_almond_model.R'))
 ```
 
 ## Apply the Function
@@ -30,7 +30,7 @@ source(here('assignments/I_Morris-Sibaja_S_Carroll_almond_model.R'))
 clim_data <- read.table(here::here("data/clim.txt"), header = TRUE)
 
 # Assign almond parameters to variables
-almond_params <- list(
+parameters <- list(
   c_T = -0.015,
   c_T2 = -0.0046,
   c_P = -0.07,

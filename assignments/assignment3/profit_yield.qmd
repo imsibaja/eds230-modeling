@@ -1,0 +1,236 @@
+---
+title: "Assignment 3: Profit with Almond Yield"
+author: "Carroll and Morris"
+date: "2025-04-21"
+format: html
+---
+## Load Packages and Functions
+```{r, warning = FALSE, message = FALSE}
+# load libraries
+library(here)
+library(tidyverse)
+```
+
+```{r}
+# call almond yield function
+source(here('assignments/assignment3/R/I_Morris-Sibaja_S_Carroll_almond_profit_model.R'))
+```
+## Apply the Function
+```{r}
+# read in climate data
+clim_data <- read.table(here::here("assignments/assignment2/data/clim.txt"), header = TRUE)
+# assign almond parameters to variables
+almond_params <- list(
+  c_T = -0.015,
+  c_T2 = -0.0046,
+  c_P = -0.07,
+  c_P2 = 0.0043,
+  intercept = 0.28
+)
+# Run function and save df to environment
+almond_variables_df <- almond_model(clim_data, almond_params)
+```
+## Profit Model
+```{r}
+profit_model <- function(yield_anomaly_df, profit_params) {
+  
+  profit_df <- yield_anomaly_df %>%
+    
+    # convert yield anomaly to yield
+    mutate(
+      yield = profit_params$baseline_yield +  almond_variables_df$yield_anomaly,
+      # calculate revenue
+      revenue = yield * profit_params$price_per_ton,
+      # calculate costs
+      labor_costs = profit_params$labor_costs,
+      water_costs = almond_variables_df$precipitation_sum_jan * profit_params$water_rate,
+      # Calculate profit
+      profit = revenue - labor_costs - water_costs,
+    )
+  return(profit_df)
+}
+```
+
+## Profit Model Parameters
+```{r}
+profit_params <- list(
+  baseline_yield = 1000, # tons/acre
+  price_per_ton = 5000, # $/ton
+  labor_costs = 3000, # $/acre
+  base_year = 2000,
+  water_rate = 2 # dollar cost per inverse mm water 
+)
+```
+## Profit Wrapper
+```{r}
+almond_yield_profit_model <- function(clim_data, almond_params, profit_params) {
+  
+  # get yield anomalies
+  yield_results <- almond_model(clim_data, almond_params)
+  # calculate profits based on yield anomalies
+  profit_results <- profit_model(yield_results, profit_params)
+  return(profit_results)
+}
+```
+
+```{r}
+almond_yield_profit_model(clim_data, almond_params, profit_params)
+```
+## Informal Sensitivity Analysis
+```{r}
+# Profit model function that builds on yield anomaly model
+profit_model <- function(yield_anomaly_df, price_per_ton, labor_costs_per_acre, water_rate, baseline_yield, base_year) {
+  # Calculate profit
+  profit_df <- yield_anomaly_df %>%
+    mutate(
+      # Calculate actual yield
+      actual_yield = baseline_yield + yield_anomaly,
+      # Calculate revenue
+      revenue = actual_yield * price_per_ton,
+      # Calculate costs
+      labor_costs = labor_costs_per_acre,
+      water_costs = water_rate / (precipitation_sum_jan + 1),
+      # Calculate profit before adjustment
+      profit_per_acre = revenue - labor_costs - water_costs,
+      # Estimate inflation
+      year_factor = 1 + 0.02 * (year - base_year),  # 2% change per year
+      # Adjust profit based on the year
+      adjusted_profit = profit_per_acre * year_factor
+    )
+  return(profit_df)
+}
+
+# Wrapper function that combines yield and profit models
+almond_yield_profit_model <- function(clim_data, almond_params, price_per_ton, labor_costs_per_acre, water_rate, baseline_yield, base_year) {
+  # Get yield anomalies
+  yield_anomaly <- almond_model(clim_data, almond_params)
+  
+  # Calculate profits
+  profit_results <- profit_model(
+    yield_anomaly, 
+    price_per_ton, 
+    labor_costs_per_acre, 
+    water_rate, 
+    baseline_yield, 
+    base_year
+  )
+  
+  return(profit_results)
+}
+
+# Informal Sensitivity Analysis
+sensitivity_analysis <- function(clim_data, almond_params, n_samples = 100) {
+  # Turn off scientific notation
+  options(scipen = 999)
+  
+  # Parameter 1: Price per ton
+  deviation_price <- 0.15  # 15%
+  base_price <- 5000
+  sample_price <- runif(
+    n = n_samples,
+    min = base_price - (deviation_price * base_price),
+    max = base_price + (deviation_price * base_price)
+  )
+  
+  # Parameter 2: Labor cost
+  deviation_labor <- 0.15 # 15%
+  base_labor_costs <- 3000
+  sample_labor <- runif(
+    n = n_samples,
+    min = base_labor_costs - (deviation_labor * base_labor_costs),
+    max = base_labor_costs + (deviation_labor * base_labor_costs)
+  )
+  
+  # Parameter 3: Base year
+  sample_base_year <- sample(2000:2020, n_samples, replace = TRUE)
+  
+  # Fixed parameters
+  water_rate <- 2  # $, cost multiplier per inverse mm precipitation
+  baseline_yield <- 1000  # tons/acre
+  
+  # Put samples together
+  params <- tibble(
+    price_per_ton = sample_price, 
+    labor_costs = sample_labor,
+    base_year = sample_base_year
+  )
+  
+  # Run model for each parameter combination
+  profit_model_results_table <- params %>%
+    pmap(function(price_per_ton, labor_costs, base_year) {
+      almond_yield_profit_model(
+        clim_data = clim_data,
+        almond_params = almond_params,
+        price_per_ton = price_per_ton,
+        labor_costs_per_acre = labor_costs,
+        water_rate = water_rate,
+        baseline_yield = baseline_yield,
+        base_year = base_year
+      )
+    })
+  
+  # Extract and combine all results
+  years_per_run <- length(unique(profit_model_results_table[[1]]$year))
+  
+  sample_series <- map_df(profit_model_results_table, ~.x) %>%
+    # Add each parameter for every year
+    bind_cols(
+      params[rep(1:nrow(params), each = years_per_run), ]
+    )
+    
+  return(sample_series)
+}
+
+# Create plots
+create_sensitivity_plots <- function(sample_series) {
+  # Plot 1: Uncertainty in profits through time
+  plot1 <- ggplot(sample_series, aes(as.factor(year), adjusted_profit)) +
+    geom_boxplot() +
+    scale_x_discrete(breaks = function(x) x[seq(1, length(x), 2)]) +
+    scale_y_continuous(labels = scales::label_dollar()) +
+    labs(x = "Year",
+         y = "Adjusted Profit (USD/acre)",
+         title = "Uncertainty in Adjusted Almond Profits over Time") +
+    theme_minimal()
+  
+  # Plot 2: How profit varies with base year parameter
+  plot2 <- ggplot(sample_series, aes(as.factor(base_year), adjusted_profit)) +
+    geom_boxplot() +
+    scale_y_continuous(labels = scales::label_dollar()) +
+    labs(x = "Base Year (Parameter)",
+         y = "Adjusted Profit (USD/acre)",
+         title = "Uncertainty in Adjusted Profits by Variation in Base Year") +
+    theme_minimal()
+  
+  return(list(sample_series_plot = plot1, base_year_plot = plot2))
+}
+
+# Function to complete the full analysis 
+full_analysis <- function(clim_data, almond_params) {
+  # Run sensitivity analysis
+  sample_series <- sensitivity_analysis(clim_data, almond_params)
+  
+  # Create plots
+  plots <- create_sensitivity_plots(sample_series)
+  
+  # Return both the data and plots
+  return(list(
+    data = sample_series,
+    plots = plots
+  ))
+}
+```
+
+```{r}
+# run the analysis function
+full_analysis(clim_data, almond_params)
+```
+
+Our profit model results indicate that as variation in base years increase, profit generally decreases. We made the assumption that the profit of almonds is dependent when the value of precipitation and yield anomalies affect costs and revenue. When we ran a sensitivity analysis test by adjusting our parameters 'price_per_ton' and 'labor_costs', we found that the profit per ton varied by +-15% from our baseline profit of $1000 per ton. We made a data frame and populated it with 100 samples generated for each parameter as well as the sample values calculated for adjusted profits. Our function was then applied to each row of our df with `pmap()`, calculating the estimated profit given specific parameter values.
+
+Our first plot indicates that the uncertainty in profits is highest in the years 1995 and 2005-2007. We expect this is due to the yield anomalies and precipitation patterns during these periods. As expected, years with a higher yield anomaly return a larger uncertainty. Overall, variation in uncertainty is low, which may suggest that there are a limited number of years that are statistical outliers.
+
+----
+
+Our profit model results indicate that as XXXXXXXXXXX increase, profit XXXXXXXXXXXX. We made the assumption that the profit of almonds is XXXXXX when the value of XXXXX is XXXXX. When we ran a  sensitivity analysis test by adjusting our parameters 'XXXXXX' and 'XXXXX', we found that the profit per ton varied by +-XXXXXXXXXX % from our baseline profit of $1000 per ton. We made a data frame and populated it with 100 samples generated for each parameter as well as the sample values calculated for XXXXXXX. Our functoin was then applied to each row of our df with `pmap()`, calculating the estimated profit given specific parameter values.
+Our first plot indicates that the uncertainty in profits is highest in the years XXXX and XXXX. We expect this is due to the XXXXXXXXXXXXXX and XXXXXXXX. As expected, years with a higher yiled anaomaly return a larger uncertainty Overall, variation in uncertainty is low, which may suggest that there are a limited number of years that are statistical outliers.
