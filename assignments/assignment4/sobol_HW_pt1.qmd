@@ -1,0 +1,18 @@
+---
+title: "sobol_HW_pt1"
+format: html
+---
+
+# Assignment 4 Pt. 1
+
+## Prompt 
+Choose one of the 3 papers below that provide an example of sensitivity analysis of model parameters.
+After going through the paper, write a paragraph describing how results of the sensitivity analysis
+reported on in the paper might contribute to understanding (or prediction) within an environmental
+problem solving or management context.
+
+## Paragraph
+
+Based on *Sobol sensitivity analysis for risk assessment of uranium in groundwater*
+
+The sensitivity analysis presented in the paper explored key factors influencing uranium exposure through both dermal contact and ingestion pathways. Input parameters include who was contacted and information of the contact itself. Results showed that distribution coefficient was the most influential variable affecting containerization. Additionally, uranium concentration in water, intake rate, exposure frequency also were leading contributing factors. These findings help inform management strategies by identifying which parameters most impact exposure risk and pollutant spread, allowing resources to be directed more effectively toward mitigating contamination.

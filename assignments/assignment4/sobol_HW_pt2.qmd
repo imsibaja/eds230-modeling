@@ -1,0 +1,160 @@
+---
+title: "ESM 230 Assignment 4"
+author: IMS
+format: html
+code-fold: show
+toc: true
+editor: visual
+embed-resources: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(sensitivity)
+library(tidyverse)
+library(gridExtra)
+library(purrr)
+library(ggpubr)
+library(here)
+```
+
+## Load the atmospheric conductance model function
+
+```{r load_model}
+# Load the Catm function from external R script
+source(here("assignments", "assignment4", "Catm.R"))
+```
+
+## Generate parameter samples
+
+```{r generate_parameters}
+# Number of parameter samples
+num_samples <- 1000
+
+# Parameter distributions:
+# k_o: stomatal conductance coefficient (mean = 0.1, SD = 1% of mean)
+k_o_samples <- rnorm(n = num_samples, 
+                     mean = 0.1, 
+                     sd = 0.1 * 0.01)
+
+# k_d: boundary layer conductance coefficient (mean = 0.7, SD = 1% of mean)
+k_d_samples <- rnorm(n = num_samples, 
+                     mean = 0.7, 
+                     sd = 0.7 * 0.01)
+
+# v: windspeed (mean = 300 cm/s, SD = 50 cm/s)
+wind_speed_samples <- rnorm(n = num_samples, 
+                            mean = 300, 
+                            sd = 50)
+
+# height: vegetation height (uniform between 3.5 and 5.5 meters)
+veg_height_samples <- runif(n = num_samples, 
+                            min = 3.5, 
+                            max = 5.5)
+
+# Combine into first sample matrix (X1)
+param_set_X1 <- data.frame(k_o = k_o_samples,
+                           k_d = k_d_samples,
+                           v = wind_speed_samples,
+                           height = veg_height_samples)
+
+# Generate second independent sample matrix (X2)
+k_o_samples_2 <- rnorm(n = num_samples, 
+                       mean = 0.1, 
+                       sd = 0.1 * 0.01)
+k_d_samples_2 <- rnorm(n = num_samples,
+                       mean = 0.7, 
+                       sd = 0.7 * 0.01)
+wind_speed_samples_2 <- rnorm(n = num_samples, 
+                              mean = 300, 
+                              sd = 50)
+veg_height_samples_2 <- runif(n = num_samples, 
+                              min = 3.5, 
+                              max = 5.5)
+
+param_set_X2 <- data.frame(k_o = k_o_samples_2,
+                           k_d = k_d_samples_2,
+                           v = wind_speed_samples_2,
+                           height = veg_height_samples_2)
+```
+
+## Set up Sobol sensitivity analysis
+
+```{r setup_sobol}
+# Create Sobol object using Saltelli sampling
+sobol_results <- sobolSalt(model = NULL, 
+                           X1 = param_set_X1, 
+                           X2 = param_set_X2, 
+                           nboot = 100)
+```
+
+## Run the model across sampled parameters
+
+```{r run_model}
+# Extract parameter combinations used by Sobol design
+params <- as.data.frame(sobol_results$X)
+colnames(params) <- colnames(param_set_X1)
+
+# Evaluate the model (Catm function) for each parameter set
+conductance_results <- pmap_dbl(params, Catm)
+
+# Attach results back to Sobol object
+sens_Catm_Sobol <- tell(sobol_results, conductance_results, res.names = "ga")
+```
+
+## Plot distribution of conductance estimates
+
+```{r plot_histogram}
+# Combine parameter matrix with model outputs
+result_data <- cbind(params, conductance = sens_Catm_Sobol$y)
+
+# Plot histogram with mean conductance line
+hist_plot <- ggplot(result_data, aes(x = conductance)) +
+  geom_histogram(bins = 30, fill = "red", color = "black") +
+  geom_vline(xintercept = mean(result_data$conductance), color = "black", linetype = "dashed") +
+  labs(title = "Conductance Estimates Distribution",
+       x = "Conductance", y = "Frequency")
+
+print(hist_plot)
+```
+
+## Find second most important paramter
+```{r}
+both <- cbind.data.frame(params, gs = sens_Catm_Sobol$y)
+
+# look at response of conductance and wind speed with height (second in total effect)
+v_gs_plot <- ggplot(both, aes(v, gs, col = height)) +
+  geom_point() +
+  labs(y = "Conductance (mm/s)", x = "Windspeed")
+
+# look at response of conductance and height with wind speed
+h_gs_plot <- ggplot(both, aes(height, gs, col = v)) +
+  geom_point() +
+  labs(y = "Conductance (mm/s)", x = "Vegetation Height")
+
+print(v_gs_plot)
+print(h_gs_plot)
+```
+
+Estimate the Sobol Indices for your output
+```{r}
+# main effect:  partitions variance (main effect without co-variance) - sums approximately to one
+sens_Catm_Sobol$S
+
+# useful to add names
+row.names(sens_Catm_Sobol$S) <- colnames(params)
+sens_Catm_Sobol$S
+
+# total effect - accounts for parameter interactions
+row.names(sens_Catm_Sobol$T) <- colnames(params)
+sens_Catm_Sobol$T
+
+# Both the main effect and total effect can tell us something about how the parameter influences results
+
+
+print(sens_Catm_Sobol)
+```
+
+## Reflection on parameter sensitivity
+
+The plot of wind speed and conductance had a stronger correlation than the in class example with lower and less variable windspeed and taller vegetation. We can conclude from our model that  atmospheric conductance is indeed sensitive to variations in wind speed, as conductance increases consistently with increasing wind speed. Additionally, when vegetation is shorter, we see that its importance increases compared to our class example, reminding us how variables confound and change our model results depending on the system we are wokring with.

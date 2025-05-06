@@ -3,6 +3,10 @@ title: "Assignment 3: Profit with Almond Yield"
 author: "Carroll and Morris"
 date: "2025-04-21"
 format: html
+code-fold: show
+toc: true
+editor: visual
+embed-resources: true
 ---
 ## Load Packages and Functions
 ```{r, warning = FALSE, message = FALSE}

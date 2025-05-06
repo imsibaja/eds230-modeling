@@ -3,6 +3,10 @@ title: "Assignment 3: Profit with Almond Yield"
 author: "Carroll and Morris"
 date: "2025-04-21"
 format: html
+code-fold: show
+toc: true
+editor: visual
+embed-resources: true
 ---
 ## Load Packages and Functions
 ```{r, warning = FALSE, message = FALSE}
@@ -18,7 +22,7 @@ source(here('assignments/assignment3/R/I_Morris-Sibaja_S_Carroll_almond_profit_m
 ## Apply the Function
 ```{r}
 # read in climate data
-clim_data <- read.table(here::here("assignments/assignment2/data/clim.txt"), header = TRUE)
+clim_data <- read.table(here::here("assignments/assignment3/data/clim.txt"), header = TRUE)
 # assign almond parameters to variables
 almond_params <- list(
   c_T = -0.015,
