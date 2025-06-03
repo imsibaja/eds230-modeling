@@ -1,0 +1,226 @@
+---
+title: "Assignment 5"
+author: "IMS"
+editor_options: 
+  chunk_output_type: console
+format: html
+code-fold: show
+toc: true
+editor: visual
+embed-resources: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(deSolve)
+library(sensitivity)
+library(here)
+```
+
+1. Impliment this model in R
+
+```{r}
+# Source function
+source(here("assignments", "assignment5", "forest.R"))
+```
+
+2.  Run the model for 300 years ( using the OD solver) starting with an initial forest size of 10 kg/C, and using the follwoing parameters
+
+-   canopy closure threshold of 50 kgC
+-   K = 250 kg C (carrying capacity)
+-   r = 0.01 (exponential growth rate before canopy closure)
+-   g = 2 kg/year (linear growth rate after canopy closure)
+
+```{r}
+params <- list(
+  K = 250,
+  r = 0.01,
+  g = 2,
+  tcc = 50
+)
+
+result <- ode(
+  func = forest,
+  # inital forest size
+  y = 10,
+  # 300 years
+  times = seq(0, 300, by=1),
+  parms = params
+)
+
+colnames(result) <- c("time", "dC_dt")
+result <- as.data.frame(result)
+```
+
+3.  Graph the results. Here you are graphing the trajectory with the parameters as given (e.g no uncertainty)
+
+```{r}
+ggplot(result, aes(time, dC_dt)) +
+  geom_line() +
+  labs(x = "Years",
+       y = "Forest dC_dt",
+       title = "Forest Growth Slope - 300 years")
+```
+
+4.  Run a Sobol global (vary all parameters at the same time) sensitivity analysis that explores how the estimated maximum forest size (e.g maximum of C 300 years, varies with these parameters)
+
+- pre canopy closure growth rate (r)
+- post-canopy closure growth rate (g)
+- canopy closure threshold and carrying capacity(K)
+
+Assume that parametres are all normally distributed with means as given above and standard deviation of 10% of mean value
+
+```{r}
+# Initial forest size
+initial_size <- 10
+
+# Set the number of parameters
+np <- 2000
+K <- rnorm(mean = 250, sd = 250 * 0.1, n = np)
+r <- rnorm(mean = 0.01, sd = 0.01 * 0.1, n = np)
+g <- rnorm(mean = 2, sd = 2 * 0.1, n = np)
+tcc <- 50
+X1 <- cbind.data.frame(K = K, r = r, g = g, tcc=tcc)
+
+# Repeat to get our second set of samples
+K <- rnorm(mean = 250, sd = 250 * 0.1, n = np)
+r <- rnorm(mean = 0.01, sd = 0.01 * 0.1, n = np)
+g <- rnorm(mean = 2, sd = 2 * 0.1, n = np)
+tcc <- 50
+X2 <- cbind.data.frame(K = K, r = r, g = g, tcc = tcc)
+
+# Fix any negative values and they are not meaningful
+X1 <- X1 %>% map_df(pmax, 0.0)
+X2 <- X2 %>% map_df(pmax, 0.0)
+
+# create our sobel object and get sets ofparameters for running the model
+sens_C <- sobolSalt(model = NULL, X1, X2, nboot = 300)
+
+# lets add names
+colnames(sens_C$X) <- c("K", "r", "g", "tcc")
+
+# The ODE needs ALL of our parameters in a single list
+# Initial size and times for which we want output
+initial_size
+
+# Results for 300 years (evaluating every year)
+simtimes <- seq(from = 1, to = 300)
+params <- list(
+  K = sens_C$X[1, "K"],
+  r = sens_C$X[1, "r"], 
+  g = sens_C$X[1, "g"], 
+  tcc = sens_C$X[1, "tcc"]
+)
+
+result <- ode(
+  func = forest,
+  # inital forest size
+  y = initial_size,
+  # 300 years
+  times = simtimes,
+  parms = params
+)
+
+colnames(result) <- c("time", "dC_dt")
+
+# Turn it into a data frame
+result <- as.data.frame(result)
+
+# Extract our metrics of interest: maximum size
+maxsize <- max(result$dC_dt)
+
+print(paste0("Max forest size is ", round(maxsize, 2) , " kg/C at ", result$time[result$dC_dt == maxsize], " years."))
+```
+
+5. Graph the results of the sensitivy analysis as a box plot of maximum forest size and record the two sobol indicies (S and T)
+
+```{r}
+# Turn computing our metrics into a function
+compute_metrics <- function(result, tcc) {
+  maxsize <- max(result$dC_dt)
+  idx <- which(result$dC_dt > tcc)[1]
+  idx <- ifelse(is.na(idx), length(result$C), idx)
+  threshyear <- result$time[idx]
+  return(list(maxsize = maxsize, threshyear = threshyear))
+}
+
+# Define a wrapper function to do everything we need - run solver and compute metrics - and send back results for each parameter
+c_wrapper <- function(r, g, K, tcc, initial_size, simtimes, odefunc, metricfunc) {
+  params <- list(
+    K = K,
+    r = r,
+    g = g,
+    tcc = tcc
+  )
+  
+  result <- ode(
+    y = initial_size,
+    times = simtimes,
+    func = odefunc,
+    parms = params,
+    method = "euler"
+  )
+  
+  colnames(result) <- c("time", "dC_dt")
+  # get metrics
+  metrics <- metricfunc(as.data.frame(result), tcc = 50)
+  return(metrics)
+}
+
+# Test
+c_wrapper(
+  K = 250,
+  r = 0.01,
+  g = 2,
+  tcc = tcc,
+  initial_size = 10,
+  simtimes = seq(from = 1, to = 300, by = 1),
+  odefunc = forest,
+  metricfunc = compute_metrics
+)
+```
+
+```{r}
+# Now use pmap as we did before
+allresults <- as.data.frame(sens_C$X) %>%
+  pmap(
+    c_wrapper,
+    initial_size = initial_size,
+    simtimes = simtimes,
+    odefunc = forest,
+    metricfunc = compute_metrics
+     )
+
+# Extract out results from pmap into a data frame
+allres <- allresults %>% 
+  map_dfr(`[`, c("maxsize", "threshyear"))
+
+# Create boxplot
+tmp <- allres %>%
+  pivot_longer(cols = everything(),
+               names_to = "metric",
+               values_to = "value")
+
+ggplot(tmp, aes(metric, value, col = metric)) +
+  geom_boxplot() +
+  labs(x = "Metric",
+       y = "Values") +
+  theme_minimal()
+
+# Sobol indices
+sens_C_maxsize <- sensitivity::tell(sens_C, allres$maxsize)
+
+# first-order indices (main effect without co-variance)
+rownames(sens_C_maxsize$S) <- c("K", "r", "g", "tcc")
+sens_C_maxsize$S
+
+# total sensitivity index -note that this partitions the output variance
+rownames(sens_C_maxsize$T) <- c("K", "r", "g", "tcc")
+sens_C_maxsize$T
+```
+
+6. In 2-3 sentences, discuss what the results of your simulation might mean. (For example think about how what parameters climate change might influence)
+
+Climate change likely will influence all the parameters. Carrying capacity (K), exponential growth before canopy closure (r), and linear growth rate after canopy closure (g) can all be affected by extreme temperatures and unforeseen precipitation events. However, my model shows the tree growth velocity is most sensitive to carrying capacity and its exponential growth, which can severely inhibit the lifespan and overall health of the forest. This will affect all other aspects, and severely inhibit the forest growth in unfavorable years.

@@ -1,0 +1,16 @@
+ 1. Parameter Uncertainty Use (2–3 sentences):
+
+The authors used the RHESSys ecohydrologic model to explore how uncertainty in range of fuel treatment, 
+biophysical, and climate conditions impacts predictions. They ran 13,500 scenarios covering combinations of these 
+parameters to map out the full range of potential fuel treatment effects and identify key drivers of outcome 
+variability.
+
+2. One Question:
+
+The paper states "The role of climate here is also likely underestimated as we simulate climate warming only with 
+a 2◦C increase in temperature and our aridity scenarios do not account for the expected increased variability of 
+precipitation". What is the justification behind this choice. It feels glossed over in this regard.
+
+3. Additional Scenario Suggestion:
+
+I would simulate alternating extreme drought and extereme rain, similar to what we have been experiencing the past few years.

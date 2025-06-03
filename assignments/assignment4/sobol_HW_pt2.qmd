@@ -119,6 +119,7 @@ print(hist_plot)
 ```
 
 ## Find second most important paramter
+
 ```{r}
 both <- cbind.data.frame(params, gs = sens_Catm_Sobol$y)
 
@@ -137,11 +138,9 @@ print(h_gs_plot)
 ```
 
 Estimate the Sobol Indices for your output
+
 ```{r}
 # main effect:  partitions variance (main effect without co-variance) - sums approximately to one
-sens_Catm_Sobol$S
-
-# useful to add names
 row.names(sens_Catm_Sobol$S) <- colnames(params)
 sens_Catm_Sobol$S
 
@@ -150,11 +149,9 @@ row.names(sens_Catm_Sobol$T) <- colnames(params)
 sens_Catm_Sobol$T
 
 # Both the main effect and total effect can tell us something about how the parameter influences results
-
-
 print(sens_Catm_Sobol)
 ```
 
 ## Reflection on parameter sensitivity
 
-The plot of wind speed and conductance had a stronger correlation than the in class example with lower and less variable windspeed and taller vegetation. We can conclude from our model that  atmospheric conductance is indeed sensitive to variations in wind speed, as conductance increases consistently with increasing wind speed. Additionally, when vegetation is shorter, we see that its importance increases compared to our class example, reminding us how variables confound and change our model results depending on the system we are wokring with.
+The plot of wind speed and conductance had a stronger correlation than the in class example with lower and less variable windspeed and taller vegetation. We can conclude from our model that atmospheric conductance is indeed sensitive to variations in wind speed, as conductance increases consistently with increasing wind speed. Additionally, when vegetation is shorter, we see that its importance increases compared to our class example, reminding us how variables confound and change our model results depending on the system we are wokring with.
