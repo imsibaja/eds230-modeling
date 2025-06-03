@@ -6,9 +6,10 @@ code-fold: show
 toc: true
 editor: visual
 embed-resources: true
+warning: false
 ---
 
-```{r, echo=TRUE, eval=TRUE}
+```{r eval=TRUE, echo=TRUE}
 library(tidyverse)
 library(here)
 
