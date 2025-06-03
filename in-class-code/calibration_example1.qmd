@@ -1,0 +1,83 @@
+---
+title: "calibration ex 1"
+author: "IMS"
+format: html
+code-fold: show
+toc: true
+editor: visual
+embed-resources: true
+---
+
+```{r, echo=TRUE, eval=TRUE}
+library(tidyverse)
+library(here)
+
+msage = readRDS(here("in-class-code/Data/msage.RDS"))
+#View(msage)
+
+# first rearrange so we can plot all results
+msagel = msage %>% gather(key="run",value="str", -date, -month, -day, -year, -wy,-obs)
+source(here("in-class-code/R/compute_highflowmetrics.R"))
+
+# another example using our high flow statistics
+# use apply to compute for all the data
+res = msage %>% select(-date, -month, -day, -year, -wy, -obs ) %>% apply(2,FUN=compute_highflowmetrics, o=msage$obs, month=msage$month, day=msage$day, year=msage$year, wy=msage$wy)
+
+# extract information from the list
+results = as.data.frame(matrix(unlist(res), byrow=T, ncol=4))
+colnames(results)=c("annual_max_err","annual_max_cor", "high_month_err",
+              "high_month_cor")
+
+# interesting to look at range of metrics - could use this to decide on
+# acceptable values
+summary(results)
+
+# graph range of performance measures
+resultsl = results %>% gather(key="metric",value="value")
+ggplot(resultsl, aes(metric, value))+geom_boxplot()+facet_wrap(~metric, scales="free")
+
+# how might you pick best parameter sets
+
+```
+
+One option
+
+```{r, echo=TRUE, eval=TRUE}
+
+# pick parameter set with greater high flow month correlation
+
+best_par2 = which.max(results$high_month_cor)
+
+# is it the same as what we got with nse
+
+```
+
+Lets keep all parameters that give reasonable values
+
+```{r, echo=TRUE, eval=TRUE}
+
+# first we need to be able to identify parameter sets in results
+
+ID = msage %>% select(-date, -month, -day, -year, -wy, -obs ) %>%  colnames()
+results$id = ID
+
+# now we can pick only good parameters
+accept_par = subset(results, annual_max_cor > 0.7 & high_month_cor > 0.7 & abs(annual_max_err < 0.2) & abs(high_month_err) < 5)
+nrow(accept_par)
+
+#  plot these to compare with all parameters
+msagel$accept = ifelse(msagel$run %in% accept_par$id, TRUE, FALSE)
+ggplot(subset(msagel, accept), aes(as.Date(date), str))+geom_line()
+
+# or with observed but focus on feb flow
+msagel_mth = msagel %>% select(-date,-day) %>%  group_by(month, wy, run, accept) %>% summarise(str=mean(str, na.rm=T), obs=mean(obs, na.rm=T))
+
+# just feb flow
+ggplot(subset(msagel_mth,  month==2 & accept),
+       aes(wy, str, group=wy))+geom_boxplot(position="dodge")+
+  geom_point(aes(wy, obs), col="red")+labs(y="Streamflow", x="Date")
+
+mean_feb_obs = mean(subset(msagel_mth, month==2)$obs) 
+ggplot(subset(msagel_mth, month==2), aes(accept, str))+geom_boxplot()+
+  geom_hline(yintercept=mean_feb_obs, col="red")+labs(y="Streamflow", x="Date")
+```
