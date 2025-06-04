@@ -1,0 +1,237 @@
+---
+title: "Hunting Sustainability Analysis: Predator-Prey Model"
+author: "IMS"
+format: html
+code-fold: show
+toc: true
+editor: visual
+embed-resources: true
+warning: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(deSolve)
+library(ggpubr)
+library(tidyverse)
+library(sensitivity)
+library(lhs)
+library(purrr)
+library(here)
+```
+
+## Load the Hunting Model
+
+We can see how our model originally works without a moderate case of hunting (15% of prey population).
+
+```{r}
+source("lotvmodK_hunt.R")
+lotvmodK_hunt
+# note the use of with
+# initial conditions
+currpop <- c(prey = 1000, pred = 200)
+
+# time points to see results
+days <- seq(from = 1, to = 1000, by = 1)
+
+# set parameters
+pars <- c(
+  rprey = 0.95, alpha = 0.01, eff = 0.6, pmort = 0.4,
+  K = 20000, hunt_rate = 0.15, min_prey = 500
+  )
+
+# run the model
+res <- ode(func = lotvmodK_hunt, y = currpop, times = days, parms = pars)
+```
+
+```{r}
+# graph the results
+head(res)
+# rearrange for easy plotting
+resl <- as.data.frame(res) %>% pivot_longer(-time, names_to = "animal", values_to = "pop")
+p1 <- ggplot(resl, aes(time, pop, col = animal)) +
+  geom_line()
+
+p1
+
+
+p2 <- ggplot(as.data.frame(res), aes(pred, prey)) +
+  geom_point() +
+  labs(y = "Prey", x = "Predators")
+p2
+
+# To make this easier to understand - maybe
+p2b <- ggplot(as.data.frame(res), aes(pred, prey, col = time)) +
+  geom_point() +
+  labs(y = "Prey", x = "Predators")
+p2b
+
+ggarrange(p1, p2b)
+```
+
+
+### Part 2
+
+We will now include a hunt rate. This hunt rate states what percent of the total prey population is available to hunt in a modeled hunting season. We can look at different iterations of hunting rates.
+
+#### First Model
+
+```{r}
+# note the use of with
+# initial conditions
+currpop <- c(prey = 1000, pred = 200)
+
+# time points to see results
+days <- seq(from = 1, to = 1000, by = 10)
+
+# set parameters
+# set parameters
+pars <- c(
+  rprey = 0.95, alpha = 0.01, eff = 0.6, pmort = 0.4,
+  K = 20000, hunt_rate = 0, min_prey = 500
+  )
+
+# run the model
+res <- ode(func = lotvmodK_hunt, y = currpop, times = days, parms = pars)
+
+# rearrange for easy plotting
+resl <- as.data.frame(res) %>% pivot_longer(-time, names_to = "animal", values_to = "pop")
+p1 <- ggplot(resl, aes(time, pop, col = animal)) +
+  geom_line()
+
+p2 <- ggplot(as.data.frame(res), aes(pred, prey)) +
+  geom_point() +
+  labs(y = "Prey", x = "Predators")
+
+# To make this easier to understand - maybe
+p2b <- ggplot(as.data.frame(res), aes(pred, prey, col = time)) +
+  geom_point() +
+  labs(y = "Prey", x = "Predators")
+
+ggarrange(p1, p2b)
+```
+
+#### Second Model
+
+```{r}
+# note the use of with
+# initial conditions
+currpop <- c(prey = 1000, pred = 200)
+# Change hunting parameters
+# set parameters
+pars <- c(
+  rprey = 0.95, alpha = 0.01, eff = 0.6, pmort = 0.4,
+  K = 20000, hunt_rate = .25, min_prey = 500
+  )
+
+# run the model
+res <- ode(func = lotvmodK_hunt, y = currpop, times = days, parms = pars)
+
+# rearrange for easy plotting
+resl <- as.data.frame(res) %>% pivot_longer(-time, names_to = "animal", values_to = "pop")
+p1 <- ggplot(resl, aes(time, pop, col = animal)) +
+  geom_line()
+
+p2 <- ggplot(as.data.frame(res), aes(pred, prey)) +
+  geom_point() +
+  labs(y = "Prey", x = "Predators")
+
+# To make this easier to understand - maybe
+p2b <- ggplot(as.data.frame(res), aes(pred, prey, col = time)) +
+  geom_point() +
+  labs(y = "Prey", x = "Predators")
+
+ggarrange(p1, p2b)
+```
+
+#### Third Model
+
+```{r}
+# note the use of with
+# initial conditions
+currpop <- c(prey = 1000, pred = 200)
+# Change hunting parameters
+# set parameters
+pars <- c(
+  rprey = 0.95, alpha = 0.01, eff = 0.6, pmort = 0.4,
+  K = 20000, hunt_rate = .5, min_prey = 500
+  )
+
+# run the model
+res <- ode(func = lotvmodK_hunt, y = currpop, times = days, parms = pars)
+
+# rearrange for easy plotting
+resl <- as.data.frame(res) %>% pivot_longer(-time, names_to = "animal", values_to = "pop")
+p1 <- ggplot(resl, aes(time, pop, col = animal)) +
+  geom_line()
+
+p2 <- ggplot(as.data.frame(res), aes(pred, prey)) +
+  geom_point() +
+  labs(y = "Prey", x = "Predators")
+
+# To make this easier to understand - maybe
+p2b <- ggplot(as.data.frame(res), aes(pred, prey, col = time)) +
+  geom_point() +
+  labs(y = "Prey", x = "Predators")
+
+ggarrange(p1, p2b)
+```
+
+
+We see the population collapses (ODE finds too much instability) somewhere between .25 and .5. We can create a function to find where that begins.
+
+```{r}
+hunt_rates <- seq(0.25, 0.5, by = 0.01)
+
+collapse_scan <- map_dfr(hunt_rates, function(h_rate) {
+  pars <- c(
+    rprey = 0.95, alpha = 0.01, eff = 0.6, pmort = 0.4,
+    K = 2000, hunt_rate = h_rate, min_prey = 500
+  )
+  
+  result <- tryCatch({
+    res <- ode(
+      func = lotvmodK_hunt,
+      y = c(prey = 1000, pred = 20),
+      times = seq(1, 100),
+      parms = pars,
+      control = list(maxsteps = 50000)  # boost to help prevent warning
+    )
+    res_df <- as.data.frame(res)
+    
+    tibble(
+      hunt_rate = h_rate,
+      prey_collapse_time = collapse_time(res_df, "prey", 10),
+      pred_collapse_time = collapse_time(res_df, "pred", 2),
+      error = FALSE
+    )
+  }, warning = function(w) {
+    tibble(
+      hunt_rate = h_rate,
+      prey_collapse_time = NA,
+      pred_collapse_time = NA,
+      error = TRUE
+    )
+  }, error = function(e) {
+    tibble(
+      hunt_rate = h_rate,
+      prey_collapse_time = NA,
+      pred_collapse_time = NA,
+      error = TRUE
+    )
+  })
+  
+  return(result)
+})
+
+collapse_scan %>%
+  filter(error) %>%
+  slice(1) %>%
+  pull(hunt_rate)
+```
+
+### Conclusions
+
+By going through the models, we can see that somewhere .25 and .5 we have a population collapse, which is defined in this model as instability within the ode solver. By iterating and finding where that fails, we can see that it is when the hunting rate is 0.34. As such, in our model we recommend to hunt a maximum of 34% of the current prey species, keeping 66% of them as untouchable in this hunting season to ensure population stability.
+
+There are parameters to play with, such as prey growth rate, predator growth rate, and plenty of others that can affect these population tendencies.
